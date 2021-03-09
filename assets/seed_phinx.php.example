@@ -1,0 +1,16 @@
+<?php
+
+use Phinx\Seed\AbstractSeed;
+
+{comment}
+class {class} extends AbstractSeed {
+	public function run() {
+		//$faker = Faker\Factory::create();
+		{enumVars}
+		$data = [];		
+		for ($i = 0; $i < {count}; $i++) {
+			{data}
+		}
+		$this->insert('{table}', $data);
+	}
+}

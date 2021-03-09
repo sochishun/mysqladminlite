@@ -1,0 +1,175 @@
+<?php
+
+/**
+ * phpmysqladminlite 配置文件
+ */
+return [
+	// 全局配置支持外部配置文件，以减小 SPA 单页文件的尺寸。
+	'extfile' => [
+		'enable' => true,
+		'path' => './config.mysalapp.php',
+	],
+	// 数据迁移框架（目前支持 phinx 和 mysal 两种）
+	'migration_framework' => 'mysal',
+	// 数据库服务器环境配置（支持 MySQL 和 MariaDB 数据库）
+	'environments' => [
+		'default_database' => 'development',
+		// 开发环境
+		'development' => [],
+		// 测试环境
+		'testing' => [
+			'adapter' => 'mysql',
+			'host' => '127.0.0.1',
+			'database' => 'dbsample',
+			'user' => 'root',
+			'password' => '',
+			'port' => 3306,
+			'charset' => 'utf8',
+			'extfile' => [],
+		],
+		// 生产环境
+		'production' => [],
+		// 基于 laravel 框架的第三方应用程序环境（vendorapp）
+		'laravelapp' => [
+			// laravel 项目的 .env 文件中没有 charset 配置项，因此这里要补充该配置项
+			'charset' => 'utf8mb4',
+			'extfile' => [
+				'enable' => true,
+				'path' => '../.env',
+				// map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+				'map' => [
+					'startline' => 'DB_CONNECTION=mysql',
+					'host' => 'DB_HOST', 'user' => 'DB_USERNAME', 'password' => 'DB_PASSWORD', 'port' => 'DB_PORT',
+					'database' => 'DB_DATABASE',
+				]
+			],
+		],
+		// 基于 thinkphp 框架的第三方应用程序环境（vendorapp）
+		'thinkphpapp' => [
+			// thinkphp 项目的 .env 文件中没有 charset 配置项，因此这里要补充该配置项
+			'charset' => 'utf8',
+			'extfile' => [
+				'enable' => true,
+				'path' => './mysqladminlite/config/thinkphp.env',
+				// map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+				'map' => [
+					'startline' => '[database]',
+					'host' => 'hostname', 'user' => 'username', 'password' => 'password', 'port' => 'hostport',
+					'database' => 'database', 'prefix' => 'prefix'
+				]
+			],
+		],
+	],
+	// 登录账号配置
+	'auth' => [
+		// 允许登录的帐号列表['登录名'=>'密码']
+		'admins' => ['myadmin' => 'passWd123', 'mydbm' => 'passWd123'],
+		// 允许访问的 ip 地址列表
+		'ips' => ['127.0.0.1', '110.52.27.168'],
+		// 指定页面访问验证类型：0=无需验证;1=帐号密码验证;2=IP验证;3=混合验证(先 IP 验证，IP 验证失败则转入帐号密码验证)
+		'current_authtype' => 1,
+		// ===================
+		// TOKEN 设置
+		// ===================
+		// TOKEN_EXP 超时时间 (1 hours, 1 minutes, 30 seconds)
+		'token_exp' => '1 hours',
+		// TOKEN_AUD 允许运行的服务器列表（适用于分布式环境，如果是负载均衡 + 高防IP环境，则填入高防IP即可）
+		// 多个之间以逗号隔开，中间不要有空格，例如：127.0.0.1,110.52.27.168
+		'token_auth' => '127.0.0.1,110.52.27.168',
+		// TOKEN 签名密钥
+		'token_key' => 'U6rxInZ7!',
+		// TOKEN 自动延期时长(秒)，每次页面跳转操作会重新生成一个延期过的 TOKEN，类似 session 的效果，只要一直操作就一直不会过期
+		'token_referesh_second' => 1800,
+	],
+	// 数据表收藏
+	'favorite' => [
+		// 是否启用功能
+		'enable' => true,
+		'dbsample' => ['tbl_user', 'tbl_product', 'tbl_category'],
+	],
+	// 快速查询, 支持在 SQL 命令中用 {#object} 代替数据表名称
+	'fastsqls' => [
+		// 是否启用功能
+		'enable' => true,
+		// 用户表
+		'tbl_user' => [
+			'simple' => [
+				'text' => '简单查',
+				'remark' => '较少字段查询',
+				'sql' => 'select `id`, `group_id`, `username`, `nickname`, `level`, `gender`, `money`, `score`, '
+					. '`status` from {#object} order by id desc limit 50;'
+			]
+		],
+	],
+	// 数据监控台配置项
+	'data_monitor_dashboard' => [
+		// 是否启用功能
+		'enable' => false,
+		// 一键重置用户数据
+		'onekeyreset' => [
+			// 按钮文字
+			'text' => '一键重置用户数据',
+			// 功能提示消息
+			'message' => '一键重置的内容：1. 所有账户数据清零。2. 用户任务表清空。3. 广告商任务表的统计数据清零。4. 所有财务日志表清空。5. 运营数据清零。6. 提现和重置数据清零。',
+			// 重置用户数据的命令集合
+			'reset_sqls' => [
+				// 'tbl_test' => [
+				// 	// 是否可用
+				// 	'enable' => true,
+				// 	// 是否使用 truncate 命令重置数据
+				// 	'truncate' => false,
+				// 	// 变更记录的查询条件
+				// 	'where' => 'id > 10',
+				// 	// 要重置更新的字段
+				// 	'update_field' => [
+				// 		0 => 'stat_recharge_amount,stat_expenditure_amount',
+				// 		1000 => 'blance_amount,frozen_amount',
+				// 		2000 => 'total_amount',
+				// 	],
+				// ],
+				'ps_advertiser_admin' => ['total_amount', 'blance_amount', 'frozen_amount=1000'],
+				'ps_user' => 'total_gold_coin,blance_gold_coin,frozen_gold_coin,blance_energy_coin,task_accept_count,task_completed_count,task_cancel_count',
+				'ps_user_task' => '',
+			],
+		],
+		// 查询范围（设置作用于搜索关键词的查询字段分组，具体在 query_sqls[table][where] 节点中设置）
+		'search_range' => ['yh' => '用户', 'ggs' => '广告商', 'qds' => '渠道商', 'task' => '任务ID'],
+		// 数据分组（用于控制哪些数据表显示或隐藏，便于数据变动的观察）
+		'data_group' => [
+			'all' => ['title' => '全部', 'tables' => ''],
+			'user_data' => ['title' => '用户数据', 'tables' => 'ps_user*,ps_financial_withdrawal,ps_financial_log'],
+		],
+		// 数据监控命令集合
+		'query_sqls' => [
+			// 节点配置信息
+			'__config__' => [
+				'unixtime_fields' => ['created_at', 'updated_at'],
+			],
+			'ps_user' => [
+				'remark'=>'sex: 0=女,1=男,2=保密<br />status: 1=正常,0=禁用',
+				'field' => 'id,user_name,total_gold_coin,blance_gold_coin,frozen_gold_coin,blance_energy_coin,task_accept_count,task_completed_count,task_cancel_count,channel_id,from_unixtime(created_at)',
+				'function' => ['sex' => function ($v) {
+					return [0 => '女', 1 => '男', 2 => '保密'][$v];
+				}, 'status' => function ($v) {
+					return [1 => '正常', 0 => '禁用'][$v];
+				}],
+				'where' => [
+					'yh' => 'user_name=\':searchWord\' or id=:intWord'
+				]
+			],
+			'ps_user_task' => [
+				'field' => 'user_id,user_name,channel_id,advertiser_id,task_id,task_name,status,reward_amount,reward_energy_coin,reward_gold_coin,reward_setting',
+				'where' => [
+					'qds' => 'channel_id=:intWord',
+					'ggs' => 'advertiser_id=:intWord',
+					'yh' => 'user_name=\':searchWord\' or user_id=:intWord',
+					'task' => 'task_id=:intWord'
+				],
+			],
+			'ps_sys_operational_statistics' => [
+				'field' => '*'
+			],
+			'ps_sys_statistical' => [],
+		],
+	],
+];

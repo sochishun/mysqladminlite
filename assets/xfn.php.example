@@ -1,0 +1,107 @@
+<?php
+
+/**
+ * 文件名：{file}
+ * 功能描述：请修改 run() 方法里面的逻辑代码，然后输入执行命令：fnx --file {file}
+ * 
+ * @version 2020-04-30
+ */
+/**
+ * 默认的功能入口函数
+ * @param PdoAdapter $pdoAdapter PDO 操作对象实例
+ * @param array $params 命令行参数数组，参数名称格式为 --name
+ * 说明：$pdoAdapter 对象提供以下方法：
+ * 	selectDb($dbname);
+ * 	checkDbName($dbname);
+ * 	getTables($dbname);
+ * 	getColumns($dbname, $table);
+ * 	find($sqlstmt, $params = []);
+ * 	query($sqlstmt, $params = [], $fetch_style = \PDO::FETCH_ASSOC);
+ * 	exec($sqlstmt);
+ * 	execute($sqlstmt, $params = []);
+ */
+function run($pdoAdapter, $params)
+{
+	// 请将以下示例功能代码替换为您的逻辑代码
+	// ...
+
+	// 读取环境配置中的当前数据库名称
+	$database = $pdoAdapter->getEnvInfo('database');
+	// 如果指定与环境配置不同的数据库则动态切换数据库
+	$database = $pdoAdapter->checkDbName($database);
+	// 获取数据库所有数据表的表信息，字段包括: TABLE_NAME, TABLE_TYPE, ENGINE, DATA_LENGTH, CREATE_TIME, TABLE_COLLATION, TABLE_COMMENT
+	$tableInfos = $pdoAdapter->getTables($database);
+	// 创建输出目录
+	$dir = './runtime/mysalapp/exports/xfnsample/';
+	if (!is_dir($dir)) {
+		mkdir($dir, 0777, true);
+	}
+	// 循环遍历数据表信息
+	$content = '';
+	foreach ($tableInfos as $tableinfo) {
+		$table = $tableinfo['TABLE_NAME'];
+		// 获取数据表中所有字段的信息，字段包括： COLUMN_NAME, IS_NULLABLE, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE, EXTRA, COLUMN_DEFAULT, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
+		$columns = $pdoAdapter->getColumns($database, $table);
+		if (!$columns) {
+			continue;
+		}
+		$content = '### ' . $table . PHP_EOL . PHP_EOL;
+		$content .= '| 字段 | 数据类型 | 可空 | 默认值 | 索引键 | 备注 |' . PHP_EOL;
+		$content .= '| --- | --- | --- | --- | --- |' . PHP_EOL;
+		foreach ($columns as $col) {
+			$content .= '| ' . $col['COLUMN_NAME'] . ' | ' . $col['COLUMN_TYPE'] . ' | ' . $col['IS_NULLABLE'] . ' | ';
+			$content .= $col['COLUMN_DEFAULT'] . ' | ' . $col['COLUMN_KEY'] . ' | ' . parse_dbcomment($col['COLUMN_COMMENT']) . ' |' . PHP_EOL;
+		}
+		$content .= PHP_EOL . PHP_EOL;
+		// 写入到文件 
+		$filename = $dir . $table . '.md';
+		file_put_contents($filename, $content);
+		echo '数据表 ', $table, ' 导出Markdown文件成功。 [文件路径：', $filename, ']', PHP_EOL;
+	}
+	// 写入到文件
+	$filename = $dir . 'summary.txt';
+	file_put_contents($filename, $content);
+	echo '一共读取了' . count($tableInfos) . '个数据表' . PHP_EOL;
+	echo '导出成功！ [文件路径：', $filename, ']', PHP_EOL;
+}
+
+/**
+ * 过滤数据库备注信息
+ * @param string $comment
+ * @return string
+ */
+function parse_dbcomment($comment)
+{
+	return addslashes(str_replace(['|', PHP_EOL], ['\|', ' '], $comment));
+}
+
+/**
+ * 类名转换为数据表名
+ * @param string $name 类名称
+ */
+function classname2table($name)
+{
+	if (!$name) {
+		return $name;
+	}
+	$chars = str_split($name);
+	array_walk($chars, function (&$v, $i) {
+		$ord = ord($v);
+		if ($ord <= 90 && $ord >= 65) {
+			$v = strtolower($v);
+			if ($i > 0) {
+				$v = '_' . $v;
+			}
+		}
+	});
+	return implode('', $chars);
+}
+
+/**
+ * 数据表名称转换为类名
+ * @param string $table 数据表名称
+ */
+function table2classname($table)
+{
+	return str_replace(' ', '', ucwords(str_replace('_', ' ', $table)));
+}

@@ -1,0 +1,33 @@
+{
+    "name": "sochishun/mysqladminlite",
+    "description": "A powerful and light tool for mysql management. it supports cli mode and web mode, and it can build single page app file, use as phpinfo.php.",
+    "keywords": [
+        "phinx",
+        "migrations",
+        "database",
+        "db",
+        "database migrations",
+        "mysql",
+        "mysqladmin"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "sochishun",
+            "email": "14507247@qq.com"
+        }
+    ],
+    "minimum-stability": "alpha",
+    "require": {
+        "php": ">=7.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "mysqladminlite\\": "src/lib/"
+        }
+    },
+    "bin": [
+        "bin/mysal"
+    ]
+}

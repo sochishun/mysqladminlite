@@ -1,0 +1,32 @@
+<?php
+
+namespace mysalapp\seeds\{database};
+
+{comment}
+class {class}
+{
+	public function run($table)
+	{
+		{enumVars}
+		$data = [];
+		echo '{table} 表数据填充开始！', PHP_EOL;
+		for ($i = 0; $i < {count}; $i++) {
+			{data}
+			if ($i % 200 == 0) {
+				try {
+					$table->insert('{table}', $data);
+					echo '.';
+					$data = [];
+				} catch (\PDOException $ex) {
+					echo $ex->getMessage(), PHP_EOL;
+					return;
+				}
+			}
+		}
+		// $table->truncate('{table}');
+		if ($data) {
+			$table->insert('{table}', $data);
+		}
+		echo PHP_EOL, '{table} 表数据填充完成！', PHP_EOL;
+	}
+}

@@ -1,0 +1,240 @@
+<?php
+
+namespace mysal;
+
+/*
+ * mysqladminlite
+ * 开源的 PHP 在线 MySQL 管理工具（单文件绿色版）
+ * 程序特性：
+ *      1. 单文件绿色版,部署超简单
+ *      2. 支持分布式服务器环境下使用，支持用户登录验证、IP验证等多种权限验证功能
+ *      3. 支持多个数据库服务器环境切换
+ *      4. 支持查看所有数据库、表、存储过程、函数、视图等，支持查看数据表、视图、存储程序等对象结构
+ *      5. 支持查看数据库引擎变量信息和数据表元数据信息
+ *      6. 支持在线查看数据表结构模型信息或者将数据表结构模型导出为markdown文档，excel文档，html文档等
+ *      7. 支持查询结果导出为 markdown文档，excel文档，sql文档等
+ *      8. 支持最新 MySQL8.x
+ *      9. 支持命令行环境使用，命令行环境支持数据迁移和测试数据生成以及数据库增删改查操作，支持导出文件，支持导入 SQL 文件
+ * 说明：写这个程序主要是为了辅助项目开发中的数据库记录查看和数据库管理。这个小程序提供了程序特性描述的功能（足以应付项目开发需要）。
+ *      如果您有兴趣一起完善这个小程序，欢迎 Pull Requests！感谢~
+ * 项目周期：
+ *      2017-8-23 立项开发
+ *      2017-8-24 程序完成
+ * 版权：不限商业用途! 如果您修改代码请保留原著署名，并把修改后的代码回馈到作者邮箱：<14507247@qq.com>，促进本产品进步。
+ *      作者博客：http://www.cnblogs.com/sochishun/ 欢迎交流~
+ *
+ * 使用方法
+ *      0. 依赖环境：PHP(5.6,7.0,7.1,7.3,7.4), mysql(5.7,5.8), PDO 扩展。
+ *      1. 复制本文件到 web 目录。
+ *      2. 首次使用请修改 JWTLite::$AUTH_CONFIG 节点的账号信息为您的账号密码。
+ *      3. 首次使用请修改 $config['environments'] 节点的数据库服务器连接信息。
+ *      4. 从浏览器打开 http://yoursitedomain/mysqladminlite.php 开始使用。
+ *      5. 命令行使用：（命令行初始化后会生成 mysqladminlite 目录，请修改 mysqladminlite/config/config.php 中的数据库连接配置）
+ *          php mysqladminlite.php --help #显示帮助内容
+ *          php mysqladminlite.php --init #初始化
+ */
+// 临时数据文件根目录路径
+const APP_ROOT_DIR = './mysqladminlite/';
+
+// 检测 PHP 扩展是否可用
+if (!extension_loaded('PDO')) {
+    exit('PDO 扩展未开启');
+}
+
+// 全局配置
+$config = [];
+// 登录账号配置
+$config['auth'] = [
+    // 允许登录的帐号列表 ['登录名'=>'密码']
+    'admins' => ['myadmin' => 'passWd123', 'mydbm' => 'passWd123'],
+    // 允许访问的 ip 地址列表
+    'ips' => ['127.0.0.1', '110.52.27.168'],
+    // 指定页面访问验证类型：0=无需验证;1=帐号密码验证;2=IP验证;3=混合验证（先IP验证，IP验证失败则转入帐号密码验证）
+    'current_authtype' => 1,
+    // ===================
+    // TOKEN 设置
+    // ===================
+    // TOKEN_EXP 超时时间 (1 hours, 1 minutes, 30 seconds)
+    'token_exp' => '1 hours',
+    // TOKEN_AUD 允许运行的服务器列表(适用于分布式环境，如果是负载均衡+高防IP环境，则填入高防IP即可)
+    // 多个之间以逗号隔开，中间不要有空格，例如：127.0.0.1,110.52.27.168
+    'token_auth' => '127.0.0.1,110.52.27.168',
+    // TOKEN 签名密钥
+    'token_key' => 'U6rxInZ7!',
+    // TOKEN 自动延期时长(秒)，每次页面跳转操作会重新生成一个延期过的 TOKEN，类似 session 的效果，只要一直操作就一直不会过期
+    'token_referesh_second' => 1800,
+];
+// 数据库服务器环境配置
+$config['environments'] = [
+    // 指定默认环境
+    'default_database' => 'development',
+    // 开发环境
+    'development' => [
+        'type' => 'mysql',
+        'host' => 'localhost',
+        'user' => 'root',
+        'password' => '',
+        'database' => 'dbexample',
+        'port' => 3306,
+        'charset' => 'utf8',
+        'prefix' => '', // 表名前缀，用于侧边栏过滤表名前缀
+        'strict_mode' => false, // 是否严格操作模式，用于在界面上警示提醒
+        // 外部配置文件，path 为路径, map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+        'extfile' => [
+            'enable' => false,
+            'path' => '../.env',
+            'map' => [
+                'startline' => '[database]',
+                'host' => 'hostname', 'user' => 'username', 'password' => 'password', 'port' => 'hostport',
+                'database' => 'database', 'prefix' => 'prefix'
+            ]
+        ],
+    ],
+    // 测试环境
+    'testing' => [],
+    // 生产环境
+    'production' => [
+        'type' => 'mysql',
+        'host' => '',
+        'user' => '',
+        'password' => '',
+        'database' => '',
+        'port' => 3306,
+        'charset' => 'utf8',
+        'prefix' => 't_', // 表名前缀，用于侧边栏过滤表名前缀
+        'strict_mode' => true, // 是否严格操作模式，用于在界面上警示提醒
+        // 端口映射服务器地址，如果配置该字段，则会解析时会替换 host 和 port 字段的值
+        'rinetd' => ['host' => '30.60.100.16', 'port' => 3366],
+        // 外部配置文件，path 为路径, map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+        'extfile' => [],
+    ],
+    // 基于 laravel 框架的第三方应用程序环境（vendorapp）
+    // 比如安装某个网站系统会自动生成相关的数据库配置文件，通过指定配置文件路径和字段映射，可以方便读取网站应用的配置文件
+    'laravelapp' => [
+        // laravel 项目的 .env 文件中没有 charset 配置项，因此这里要补充该配置项
+        'charset' => 'utf8mb4',
+        'extfile' => [
+            'path' => '../.env',
+            // map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+            'map' => [
+                'startline' => 'DB_CONNECTION=mysql',
+                'host' => 'DB_HOST', 'user' => 'DB_USERNAME', 'password' => 'DB_PASSWORD', 'port' => 'DB_PORT',
+                'database' => 'DB_DATABASE',
+            ]
+        ],
+    ],
+    // 基于 thinkphp 框架的第三方应用程序环境（vendorapp）
+    'thinkphpapp' => [
+        // thinkphp 项目的 .env 文件中没有 charset 配置项，因此这里要补充该配置项
+        'charset' => 'utf8',
+        'extfile' => [
+            'enable' => false,
+            'path' => './mysqladminlite/config/thinkphp.env',
+            // map 为字段映射，外部配置会覆盖内部配置，startline 为文本配置文件的有效起始行内容
+            'map' => [
+                'startline' => '[database]',
+                'host' => 'hostname', 'user' => 'username', 'password' => 'password', 'port' => 'hostport',
+                'database' => 'database', 'prefix' => 'prefix'
+            ]
+        ],
+    ]
+];
+// 数据迁移框架（目前支持 phinx 和 mysal[mysqladminlite] 两种）
+$config['migration_framework'] = 'phinx';
+// UI 静态资源配置
+$config['ui_resource'] = [
+    'provider' => 'cdn',
+    'css' => [
+        '_tpl' => '<link href="%s" rel="stylesheet" />',
+        'bootstrap' => [
+            'cdn' => 'https://cdn.bootcss.com/twitter-bootstrap/4.4.1/css/bootstrap.min.css',
+            'local' => '/assets/dist/css/adminlte.min.css'
+        ],
+        'mysqladminlite' => [
+            'cdn' => '',
+            'local' => './mysqladminlite/ui/mysqladminlite.css',
+        ]
+    ],
+    'javascript' => [
+        '_tpl' => '<script src="%s"></script>',
+        'jquery' => [
+            'cdn' => 'https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js',
+            'local' => '/assets/dist/plugins/jquery/jquery.min.js'
+        ],
+        'bootstrap' => [
+            'cdn' => 'https://cdn.bootcss.com/twitter-bootstrap/4.4.1/js/bootstrap.bundle.min.js',
+            'local' => '/assets/dist/plugins/bootstrap/bootstrap.bundle.min.js'
+        ],
+        'mysqladminlite' => [
+            'cdn' => '',
+            'local' => './mysqladminlite/ui/mysqladminlite.js',
+        ]
+    ]
+];
+// 教程网址收藏夹
+$config['tutorial'] = [
+    '教程手册' => [
+        ['title' => 'MySQL 教程 | 菜鸟教程', 'url' => 'https://www.runoob.com/mysql/mysql-tutorial.html'],
+        ['title' => 'MySQL 教程_w3cschool', 'url' => 'https://www.w3cschool.cn/mysql/'],
+        ['title' => 'Mysql中时间和日期函数', 'url' => 'https://www.iteblog.com/mysql中时间和日期函数/'],
+        ['title' => 'MySQL：日期函数、时间函数总结', 'url' => 'https://www.cnblogs.com/ggjucheng/p/3352280.html'],
+        ['title' => 'mysql时间日期函数', 'url' => 'https://www.cnblogs.com/weibanggang/p/9574987.html'],
+    ],
+];
+// 数据表收藏(在 侧边栏-快捷跳转 数据表下拉框中置顶显示)
+$config['favorite'] = [
+    'dbexample' => ['table1', 'table2'],
+    'dbtest' => ['tbl_user', 'ps_admin'],
+];
+// 快速查询：数据表的一些常用查询语句可以配置到快捷查询中(name 用英文，remark 描述务必填写)
+// 支持 {#object} 变量, 如: ['tbl_log_'.date('Ym') => ['simple' => ['sql' => 'select * from {#object} limit 10']]]
+// 格式：['table1'=>['name1'=>['sql'=>'','remark'=>''],'name1'=>['sql'=>'','remark'=>'']]
+$config['fastsqls'] = [
+    // 用户表
+    'tbl_user' => [
+        'all' => [
+            'text' => '全部查',
+            'remark' => '查询全部字段',
+            'sql' => 'select * from {#object} limit 100;'
+        ],
+        'simple' => [
+            'text' => '简单查',
+            'remark' => '较少字段查询',
+            'sql' => 'select id, username, nickname, mobile, level, gender, money, score, status, '
+                . 'from_unixtime(`createtime`+28800) from {#object} where 1=1 order by id desc limit 30;'
+        ],
+    ],
+    // 日志月份分表
+    'tbl_log_' . date('Ym') => [
+        'simple' => [
+            'text' => '简单查',
+            'remark' => '查询较少字段',
+            'sql' => 'select uid, createtime, updatetime from {#object}'
+                . ' order by addtime desc limit 50;'
+        ],
+        'export' => [
+            'text' => '查询导出',
+            'remark' => '导出查询记录',
+            'sql' => "select `uid` as '用户ID', `createtime` as '接取时间', `updatetime` as '完成时间' from {#object}"
+                . " order by createtime desc",
+        ],
+    ],
+    // 全局群组配置，用于按月份创建的数据表。
+    // 键值数组中包含的所有的日期分表都会自动设置成和键名指向的数据表的配置内容一样的内容
+    '-group-' => [
+        'ps_task_log_' . date('Ym') => ['ps_task_log_201912', 'ps_task_log_20203'],
+    ]
+];
+
+// 命令行模式，在命令行输入命令"php mysqladminlite.php --help"查看命令帮助
+if (php_sapi_name() == 'cli') {
+    $console = new ConsoleApp();
+    $console->run($argc, $argv, $config, APP_ROOT_DIR);
+    exit();
+}
+
+// 网页版模式
+$app = new WebApp();
+$app->run($config, APP_ROOT_DIR);
+
+// ========== 类库 =========
